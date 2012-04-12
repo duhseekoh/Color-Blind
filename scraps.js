@@ -49,7 +49,7 @@ javascript: (function () {
 
 	var jsCodeJQIMG = document.createElement('script');
     jsCodeJQIMG.setAttribute('type', 'text/javascript');  
-    jsCodeJQIMG.setAttribute('src', 'http://github.com/betamax/getImageData/raw/master/jquery.getimagedata.min.js');  
+    jsCodeJQIMG.setAttribute('src', 'http://github.com/betamax/getImageData/raw/master/jquery.getimagedata.js');  
 	document.body.appendChild(jsCodeJQIMG);
 }());
 
@@ -143,6 +143,7 @@ $("img").each(function(index,curImg) {
   
  $.getImageData({
 	url: $(curImg).attr("src"),
+	server: "http://127.0.0.1:3000/",
 	success: function(image) {
 		context.drawImage(image, 0, 0, canvasEl.width, canvasEl.height);
 		var imageData = context.getImageData(0, 0, canvasEl.width, canvasEl.height);
@@ -159,8 +160,50 @@ $("img").each(function(index,curImg) {
 		
 		$(curImg).remove();
 		console.log(canvasEl);
+	},
+	error: function(xhr, text_status) {
+		debugger;
 	}
  });
+});
+
+ ---------------------------
+ IMG
+ *********************************
+ V3
+ ---------------------------
+$("img").each(function(index,curImg) {
+if($(curImg).attr('src').indexOf("http") != -1) { 
+ var canvasEl = $("<canvas/>",{})[0];
+ canvasEl.height = curImg.height;
+ canvasEl.width = curImg.width;
+ var context = canvasEl.getContext("2d");
+ $(curImg).after(canvasEl);
+ //make the below call an immediately invoked function expression 
+ $.getJSON("http://127.0.0.1:3000/?callback=?",
+		{"url":$(curImg).attr("src")},
+		function(imageInfo) {
+			var image = new Image;
+			image.src = imageInfo.data;
+			image.onload = function() {
+				context.drawImage(image, 0, 0, imageInfo.width, imageInfo.height);
+				var imageData = context.getImageData(0, 0, imageInfo.width, imageInfo.height);
+				var pixels = imageData.data;
+
+				for (var i = 0, il = pixels.length; i < il; i += 4) {
+					var rgbString = "rgb("+pixels[i]+", "+pixels[i+1]+", "+pixels[i+2]+")";
+					var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
+					pixels[i] = lessDesaturated.rgb[0];
+					pixels[i+1] = lessDesaturated.rgb[1];
+					pixels[i+2] = lessDesaturated.rgb[2];
+				}
+				context.putImageData(imageData, 0, 0);
+		
+				$(curImg).remove();
+				console.log(canvasEl);
+			}
+		});
+}
 });
 
  
