@@ -46,11 +46,6 @@ javascript: (function () {
     jsCodeJQ.setAttribute('type', 'text/javascript');  
     jsCodeJQ.setAttribute('src', 'https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js');  
 	document.body.appendChild(jsCodeJQ);
-
-	var jsCodeJQIMG = document.createElement('script');
-    jsCodeJQIMG.setAttribute('type', 'text/javascript');  
-    jsCodeJQIMG.setAttribute('src', 'http://github.com/betamax/getImageData/raw/master/jquery.getimagedata.js');  
-	document.body.appendChild(jsCodeJQIMG);
 }());
 
    
@@ -170,40 +165,123 @@ $("img").each(function(index,curImg) {
  ---------------------------
  IMG
  *********************************
- V3
+ V3 - crossdomain without $.getImageData
  ---------------------------
+function crossDomainImageCallback(imageInfo) {
+	
+}
+
+console.log("Amount of images: " + $("img").length());
 $("img").each(function(index,curImg) {
 if($(curImg).attr('src').indexOf("http") != -1) { 
  var canvasEl = $("<canvas/>",{})[0];
  canvasEl.height = curImg.height;
  canvasEl.width = curImg.width;
- var context = canvasEl.getContext("2d");
- $(curImg).after(canvasEl);
- //make the below call an immediately invoked function expression 
- $.getJSON("http://127.0.0.1:3000/?callback=?",
-		{"url":$(curImg).attr("src")},
-		function(imageInfo) {
-			var image = new Image;
-			image.src = imageInfo.data;
-			image.onload = function() {
-				context.drawImage(image, 0, 0, imageInfo.width, imageInfo.height);
-				var imageData = context.getImageData(0, 0, imageInfo.width, imageInfo.height);
-				var pixels = imageData.data;
+ if(curImg.height > 5) {
+	 var context = canvasEl.getContext("2d");
+	 $(curImg).after(canvasEl);
+	 //console.log("1: Width: " + imageInfo.width + ", Height: " + imageInfo.height);
+	 //make the below call an immediately invoked function expression 
+	 $.getJSON("http://127.0.0.1:3000/?callback=?",
+			{"url":$(curImg).attr("src")},
+			function(imageInfo) {
+				//debugger;
+				var image = new Image;
+				image.src = imageInfo.data;
+				console.log("2: Width: " + imageInfo.width + ", Height: " + imageInfo.height);
+				image.onload = function() {
+					console.log("3: Width: " + imageInfo.width + ", Height: " + imageInfo.height);
+					context.drawImage(image, 0, 0, imageInfo.width, imageInfo.height);
+					var imageData = context.getImageData(0, 0, imageInfo.width, imageInfo.height);
+					var pixels = imageData.data;
 
-				for (var i = 0, il = pixels.length; i < il; i += 4) {
-					var rgbString = "rgb("+pixels[i]+", "+pixels[i+1]+", "+pixels[i+2]+")";
-					var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
-					pixels[i] = lessDesaturated.rgb[0];
-					pixels[i+1] = lessDesaturated.rgb[1];
-					pixels[i+2] = lessDesaturated.rgb[2];
-				}
-				context.putImageData(imageData, 0, 0);
+					for (var i = 0, il = pixels.length; i < il; i += 4) {
+						var rgbString = "rgb("+pixels[i]+", "+pixels[i+1]+", "+pixels[i+2]+")";
+						var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
+						pixels[i] = lessDesaturated.rgb[0];
+						pixels[i+1] = lessDesaturated.rgb[1];
+						pixels[i+2] = lessDesaturated.rgb[2];
+					}
+					context.putImageData(imageData, 0, 0);
 		
-				$(curImg).remove();
-				console.log(canvasEl);
-			}
-		});
+					$(curImg).remove();
+					console.log(canvasEl);
+				}
+			});
+	}
 }
 });
 
- 
+---------------------------
+ IMG
+ *********************************
+ V4 - Combine cross domain and local images
+ ---------------------------
+function crossDomainImageCallback(imageInfo, canvasContext) {
+	//debugger;
+	var image = new Image;
+	image.src = imageInfo.data;
+	console.log("2: Width: " + imageInfo.width + ", Height: " + imageInfo.height);
+	image.onload = function() {
+		console.log("3: Width: " + imageInfo.width + ", Height: " + imageInfo.height);
+		canvasContext.drawImage(image, 0, 0, imageInfo.width, imageInfo.height);
+		var imageData = canvasContext.getImageData(0, 0, imageInfo.width, imageInfo.height);
+		var pixels = imageData.data;
+
+		for (var i = 0, il = pixels.length; i < il; i += 4) {
+			var rgbString = "rgb("+pixels[i]+", "+pixels[i+1]+", "+pixels[i+2]+")";
+			var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
+			pixels[i] = lessDesaturated.rgb[0];
+			pixels[i+1] = lessDesaturated.rgb[1];
+			pixels[i+2] = lessDesaturated.rgb[2];
+		}
+		canvasContext.putImageData(imageData, 0, 0);
+	}
+}
+
+console.log("Amount of images: " + $("img").length);
+$("img").each(function(index,curImg) {
+if($(curImg).attr('src').indexOf("http") != -1) {
+ //CROSS DOMAIN IMAGES 
+ var canvasEl = $("<canvas/>",{})[0];
+ canvasEl.height = curImg.height;
+ canvasEl.width = curImg.width;
+ if(curImg.height > 5) {
+	 var context = canvasEl.getContext("2d");
+	 $(curImg).after(canvasEl);
+	 $.getJSON("http://127.0.0.1:3000/?callback=?",
+			{"url":$(curImg).attr("src")},
+			function(imageInfo) {
+				//debugger;
+				crossDomainImageCallback(imageInfo,context);
+	 });
+	}
+} else {
+	//LOCAL IMAGES
+	var canvasEl = $("<canvas/>",{})[0];
+	 canvasEl.height = curImg.height;
+	 canvasEl.width = curImg.width;
+	 //debugger;
+	 var context = canvasEl.getContext("2d");
+	 $(curImg).after(canvasEl);
+	var imageObj = new Image();
+	 imageObj.onload = function() {
+	  context.drawImage(imageObj,0,0);
+	  var imageData = context.getImageData(0, 0, canvasEl.width, canvasEl.height);
+	  var pixels = imageData.data;
+
+	  for (var i = 0, il = pixels.length; i < il; i += 4) {
+		  var rgbString = "rgb("+pixels[i]+", "+pixels[i+1]+", "+pixels[i+2]+")";
+		  var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
+		  pixels[i] = lessDesaturated.rgb[0];
+		  pixels[i+1] = lessDesaturated.rgb[1];
+		  pixels[i+2] = lessDesaturated.rgb[2];
+	  }
+
+	  context.putImageData(imageData, 0, 0);
+	 }
+	 imageObj.src=$(curImg).attr("src");
+	 
+}
+$(curImg).remove();
+});
