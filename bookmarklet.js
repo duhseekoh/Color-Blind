@@ -62,6 +62,7 @@ function crossDomainImageCallback(imageInfo, canvasContext) {
 			pixels[i+1] = lessDesaturated.rgb[1];
 			pixels[i+2] = lessDesaturated.rgb[2];
 		}
+		debugger;
 		canvasContext.putImageData(imageData, 0, 0);
 	}
 }
