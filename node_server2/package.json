@@ -1,0 +1,11 @@
+{
+  "name": "color_blind_server",
+  "description": "Get base64 encoded data link of an image",
+  "version": "0.1.0",
+  "author": "Dom DiCicco <dicicco2@gmail.com>",
+  "dependencies": {
+    "connect": "2.x",
+	  "express": "2.x",
+	  "request": "2.9.x"
+  }
+}

@@ -1,43 +1,14 @@
-/*
- *
- *  jQuery $.getImageData Plugin 0.3
- *  http://www.maxnov.com/getimagedata
- *  
- *  Written by Max Novakovic (http://www.maxnov.com/)
- *  Date: Thu Jan 13 2011
- *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *  
- *  DESCRIPTION: Node server used to fetch an image and return 
- *  it as a base64 encoded string. Part of jQuery getImageData 
- *  Plugin (http://www.maxnov.com/getimagedata).
- * 
- *  THANKS: To bxjx (http://stackoverflow.com/users/373903) for
- *  his support in getting this working.
- * 
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- *  
- *  Copyright 2011, Max Novakovic
- *  Dual licensed under the MIT or GPL Version 2 licenses.
- *  http://www.maxnov.com/getimagedata/#license
- * 
- */
-
 // Include dependencies
 var express = require('express'),
 request = require('request'),
-BufferList = require('bufferlist').BufferList,
-gm = require('gm'),
 http = require('http'),
 fs = require('fs'),
 sys = require('sys');
 
-// Create the server
 var app = express.createServer(
 	express.logger()
 );
 
-// When requesting the root
 app.get('/', function(req, res){
 	
 	// If a URL and callback parameters are present 
@@ -45,17 +16,9 @@ app.get('/', function(req, res){
 		
 		// Get the parameters
 		var url = unescape(req.param("url")),
-		callback = req.param("callback"),
+		callback = req.param("callback");
 		
-		// Create a BufferList
-		bl = new BufferList();
-		
-		//var imageStream = fs.createWriteStream("./test/test.jpg");
-		//request(url).pipe(fs.createWriteStream("./test/test.jpg"));
-		//imageStream.end();
-		//res.end();
-		
-		request({ uri:url}, function (error, response, body) {
+		request({ uri:url, encoding: 'binary'}, function (error, response, body) {
 			// If the request was OK
 			if (!error && response.statusCode == 200) {
 				
@@ -66,70 +29,30 @@ app.get('/', function(req, res){
 				   mimetype == "image/tiff") {
 					
 					// Create the prefix for the data URL
-					var type_prefix = "data:" + mimetype + ";base64,",
+					var type_prefix = "data:" + mimetype + ";base64,";
 					
 					// Get the image from the response stream as a string and convert it to base64
-					filename = "./test/" + url.substring(url.lastIndexOf('/')+1);
-					var inStream = fs.createReadStream(filename);
-					var image = "";
-					inStream.on('data', function(data) {
-						image += data;
-					});
-					inStream.on('close', function(data) {
-						var image_buffer = new Buffer(image);
-						var image_64 = image_buffer.toString('base64');
-						//var image_64 = imageBuffer.toString('base64'); 
+					var image_buffer = new Buffer(body.toString(),"binary");
+					var image_64 = image_buffer.toString('base64'); 
 
-						// Concat the prefix and the image
-						image_64 = type_prefix + image_64;
+					// Concat the prefix and the image
+					image_64 = type_prefix + image_64;
 
-						// Set width and height to 0
-						var width = 0, 
-						height = 0;
+					console.log("image_64*********" + image_64);
 
-						// Get the image filename
-						//filename = "./test/" + url.substring(url.lastIndexOf('/')+1),
+					// The data to be returned 
+					var return_variable = {
+							"data": image_64
+					};
 
-						// Create a WriteStream for the image
-						//out = fs.createWriteStream(filename);
-						// Save it
-						//out.write(image);
-						//out.end();
-						console.log("Filename*********" + filename);
-						console.log("image_64*********" + image_64);
-						// Get the image dimensions using GraphicsMagick
-						gm(filename).size(function(err, size){
-							console.log("getting size");
-							// Delete the tmp image
-							//fs.unlink(filename);
+					// Stringifiy the return variable and wrap it in the callback for JSONP compatibility
+					return_variable = callback + "(" + JSON.stringify(return_variable) + ");";
 
-							// Error getting dimensions
-							if(err) res.send("Error getting image dimensions", 400);
-							else {
+					// Set the headers as OK and JS
+					res.writeHead(200, {'Content-Type': 'application/javascript; charset=UTF-8'});
 
-								width = size.width;
-								height = size.height;
-
-								// The data to be returned 
-								var return_variable = {
-									"width": width,
-									"height": height,
-									"data": image_64
-								};
-
-								// Stringifiy the return variable and wrap it in the callback for JSONP compatibility
-								return_variable = callback + "(" + JSON.stringify(return_variable) + ");";
-
-								// Set the headers as OK and JS
-								res.writeHead(200, {'Content-Type': 'application/javascript; charset=UTF-8'});
-
-								// Return the data
-								res.end(return_variable);
-
-							}
-
-						});
-					});
+					// Return the data
+					res.end(return_variable);
 					
 					
 				// File type was not a supported image
@@ -138,7 +61,7 @@ app.get('/', function(req, res){
 			// Error getting the image
 			} else res.send("Third-party server error", response.statusCode);
 			
-		}).pipe(fs.createWriteStream("./test/" + url.substring(url.lastIndexOf('/')+1)));
+		});
 		
 	// Missing parameters	
 	} else res.send("No URL or no callback was specified. These are required", 400);

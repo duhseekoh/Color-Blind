@@ -1,1 +1,0 @@
-$.getImageData: This is a modification of getImageData node server to work with newer versions of node and the request package. I plan on doing a pull request for the actual project once I get this working as more than just experimental.
