@@ -18,6 +18,10 @@ app.get('/', function(req, res){
 		var url = unescape(req.param("url")),
 		callback = req.param("callback");
 		
+		if(url.indexOf("data") !== -1) {
+			res.send("This file type is not supported", 400);
+		}
+		
 		request({ uri:url, encoding: 'binary'}, function (error, response, body) {
 			// If the request was OK
 			if (!error && response.statusCode == 200) {

@@ -53,21 +53,19 @@ $(document.styleSheets).each(function(ssIndex,ss) {
 		}
 	});
 });
-console.log("TOTAL RULES: " + totalRules);
+console.log("TOTAL RULES WITH BG IMAGE: " + totalRules);
 
-var rulesProcessed = 0;
+var rulesProcessed = 0, rulesProcessedWithBG = 0;
 $(document.styleSheets).each(function(ssIndex,ss) {
-//var ss = document.styleSheets[0];
 $(ss.rules).each(function(index, cssRule) {
   var cssText = cssRule.cssText;
  if(cssText.indexOf("background:") !== -1) {
 	console.log("BG: " + cssText);
 }
  if(cssText.indexOf("background-image: url") !== -1) {  
- 	//var cssBGImage = cssText.match( /background-image: url\([^)]+\);/ );
 	var cssBGImageMatch = cssText.match( /background-image: url\(([^)]+)\);/ );
 	if(!cssBGImageMatch || cssBGImageMatch.length < 2) {
-		return false;
+		return true;
 	}
 	var cssBGImage = cssBGImageMatch[1];
 	
@@ -75,13 +73,15 @@ $(ss.rules).each(function(index, cssRule) {
 				{"url":cssBGImage},
 				function(imageInfo) {
 					console.log(cssBGImage);
-					//console.log(imageInfo);
+					console.log(imageInfo);
 					debugger;
 					var newCSSText = cssText.replace(/background-image: url\(([^)]+)\);/
 							,"background-image: url(\""+imageInfo.data+"\");");
 					ss.insertRule(newCSSText,ss.rules.length);
 					//console.log(newCSSText);
-		 });
+		 }).error(function() {
+			console.log("error");
+		});
   //REGEX Explanation:
 	//match a string starting with "background-image: url(".
   //the next paran denotes the start of the backreference that we want to start extracting the insides to save the url
@@ -94,4 +94,4 @@ $(ss.rules).each(function(index, cssRule) {
  }
 });
 });
-console.log("RULES PROCESSED: " + rulesProcessed);
+console.log("RULES PROCESSED WITH BG IMAGE: " + rulesProcessed);
