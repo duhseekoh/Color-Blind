@@ -86,8 +86,10 @@ $(ss.rules).each(function(index, cssRule) {
 					var context = canvasEl[0].getContext("2d");
 					var imageObj = new Image();
 					 imageObj.onload = function() {
+						debugger;
 					  context.drawImage(imageObj,0,0);
-					  var imageData = context.getImageData(0, 0, 100, 100);
+					  var imageData = context.getImageData(0, 0, this.width, this.height);
+					  console.log("W/H: " + this.width + " / " + this.height);
 					  var pixels = imageData.data;
 
 					  for (var i = 0, il = pixels.length; i < il; i += 4) {
@@ -97,8 +99,10 @@ $(ss.rules).each(function(index, cssRule) {
 						  pixels[i+1] = lessDesaturated.rgb[1];
 						  pixels[i+2] = lessDesaturated.rgb[2];
 					  }
-					  context.putImageData(imageData, 0, 0);
+					  context.putImageData(imageData, 0, 0, 0, 0, this.width, this.height);
 					
+						$(canvasEl).attr("width",this.width);
+						$(canvasEl).attr("height",this.height);
 					  var dataUrl = canvasEl[0].toDataURL();
 						var newCSSText = cssText.replace(/background-image: url\(([^)]+)\);/
 								,"background-image: url(\""+dataUrl+"\");");
