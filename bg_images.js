@@ -55,6 +55,10 @@ $(document.styleSheets).each(function(ssIndex,ss) {
 });
 console.log("TOTAL RULES WITH BG IMAGE: " + totalRules);
 
+//put a div to put the images in
+//var bgHolder = $('<ol id="bgHelper"></ol>');
+//$('body').append(bgHolder);
+
 var rulesProcessed = 0, rulesProcessedWithBG = 0;
 $(document.styleSheets).each(function(ssIndex,ss) {
 $(ss.rules).each(function(index, cssRule) {
@@ -72,12 +76,39 @@ $(ss.rules).each(function(index, cssRule) {
 	$.getJSON("http://127.0.0.1:3000/?callback=?",
 				{"url":cssBGImage},
 				function(imageInfo) {
-					console.log(cssBGImage);
+					console.log("URL: " + cssBGImage);
+					console.log("DATA: ");
 					console.log(imageInfo);
+					//add data elements to bgHolder
+					//var bgLi = $('<li></li>');
+					//$(bgLi).attr("")
+					var canvasEl = $('<canvas/>');
+					var context = canvasEl[0].getContext("2d");
+					var imageObj = new Image();
+					 imageObj.onload = function() {
+					  context.drawImage(imageObj,0,0);
+					  var imageData = context.getImageData(0, 0, 100, 100);
+					  var pixels = imageData.data;
+
+					  for (var i = 0, il = pixels.length; i < il; i += 4) {
+						  var rgbString = "rgb("+pixels[i]+", "+pixels[i+1]+", "+pixels[i+2]+")";
+						  var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
+						  pixels[i] = lessDesaturated.rgb[0];
+						  pixels[i+1] = lessDesaturated.rgb[1];
+						  pixels[i+2] = lessDesaturated.rgb[2];
+					  }
+					  context.putImageData(imageData, 0, 0);
+					
+					  var dataUrl = canvasEl[0].toDataURL();
+						var newCSSText = cssText.replace(/background-image: url\(([^)]+)\);/
+								,"background-image: url(\""+dataUrl+"\");");
+						ss.insertRule(newCSSText,ss.rules.length);
+					 }
+					//pump the base64 image into the canvas img
+					imageObj.src = imageInfo.data;
+					
 					debugger;
-					var newCSSText = cssText.replace(/background-image: url\(([^)]+)\);/
-							,"background-image: url(\""+imageInfo.data+"\");");
-					ss.insertRule(newCSSText,ss.rules.length);
+					
 					//console.log(newCSSText);
 		 }).error(function() {
 			console.log("error");
