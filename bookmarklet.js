@@ -60,18 +60,18 @@ function crossDomainImageCallback(imageInfo, canvasContext) {
 
 //IMAGES
 function processImages() {
-	console.log("Amount of images: " + $("img").length);
-	$("img").each(function(index,curImg) {
-	if($(curImg).attr('src') && $(curImg).attr('src').indexOf("http") != -1) {
+	console.log("Amount of images: " + jQuery("img").length);
+	jQuery("img").each(function(index,curImg) {
+	if(jQuery(curImg).attr('src') && jQuery(curImg).attr('src').indexOf("http") != -1) {
 	 //CROSS DOMAIN IMAGES 
-	 var canvasEl = $("<canvas/>",{})[0];
+	 var canvasEl = jQuery("<canvas/>",{})[0];
 	 canvasEl.height = curImg.height;
 	 canvasEl.width = curImg.width;
 	 if(curImg.height > 5) {
 		 var context = canvasEl.getContext("2d");
-		 $(curImg).after(canvasEl);
-		 $.getJSON("http://127.0.0.1:3000/?callback=?",
-				{"url":$(curImg).attr("src")},
+		 jQuery(curImg).after(canvasEl);
+		 jQuery.getJSON("http://127.0.0.1:3000/?callback=?",
+				{"url":jQuery(curImg).attr("src")},
 				function(imageInfo) {
 					//debugger;
 					crossDomainImageCallback(imageInfo,context);
@@ -79,12 +79,12 @@ function processImages() {
 		}
 	} else {
 		//LOCAL IMAGES
-		var canvasEl = $("<canvas/>",{})[0];
+		var canvasEl = jQuery("<canvas/>",{})[0];
 		 canvasEl.height = curImg.height;
 		 canvasEl.width = curImg.width;
 		 //debugger;
 		 var context = canvasEl.getContext("2d");
-		 $(curImg).after(canvasEl);
+		 jQuery(curImg).after(canvasEl);
 		var imageObj = new Image();
 		 imageObj.onload = function() {
 		  context.drawImage(imageObj,0,0);
@@ -101,33 +101,39 @@ function processImages() {
 
 		  context.putImageData(imageData, 0, 0);
 		 }
-		 imageObj.src=$(curImg).attr("src");
+		 imageObj.src=jQuery(curImg).attr("src");
 		 
 	}
-	$(curImg).remove();
+	jQuery(curImg).remove();
 	});
 }
 
 //CSS FILES
 function processCSS() {
-	$(document.styleSheets).each(function(ssIndex,ss) {
-	//var ss = document.styleSheets[0];
-		$(ss.rules).each(function(index, cssRule) {
+	console.log("Processing CSS");
+	console.log("Total Stylesheets: " + document.styleSheets.length);
+	jQuery(document.styleSheets).each(function(ssIndex,ss) {
+		if(!ss.rules) return;
+		console.log("Stylesheet " + ssIndex + " has " + ss.rules.length + " CSS rules defined");
+		jQuery(ss.rules).each(function(index, cssRule) {
 		  var cssText = cssRule.cssText;
 		  var newCssText = cssText.replace(/rgb\((\d+),\s(\d+),\s(\d+)\)/g,convertRGBAndDesaturate);
 		  if(cssText != newCssText) {
 			ss.insertRule(newCssText,ss.rules.length);
-			console.log(newCssText);
+			//console.log(newCssText);
 		  }
 		});
 	});
+	console.log("Done Processing CSS");
 }
 
 //CSS BACKGROUND IMAGES
+//TODO: Get a list of all the different images with each cssRule, then loop over those
+//and make the ajax calls, so the same image is only processed once.
 function processCSSImages() {
 	var totalRules = 0;
-	$(document.styleSheets).each(function(ssIndex,ss) {
-		$(ss.rules).each(function(index, cssRule) {
+	jQuery(document.styleSheets).each(function(ssIndex,ss) {
+		jQuery(ss.rules).each(function(index, cssRule) {
 			if(cssRule.cssText && cssRule.cssText.indexOf("background-image: url") !== -1) {
 				totalRules++;
 			}
@@ -135,40 +141,46 @@ function processCSSImages() {
 	});
 	console.log("TOTAL RULES WITH BG IMAGE: " + totalRules);
 
-	//put a div to put the images in
-	//var bgHolder = $('<ol id="bgHelper"></ol>');
-	//$('body').append(bgHolder);
-
 	var rulesProcessed = 0, rulesProcessedWithBG = 0;
-	$(document.styleSheets).each(function(ssIndex,ss) {
-	$(ss.rules).each(function(index, cssRule) {
+	jQuery(document.styleSheets).each(function(ssIndex,ss) {
+	jQuery(ss.rules).each(function(index, cssRule) {
 	  var cssText = cssRule.cssText;
 	 if(cssRule.cssText && cssText.indexOf("background:") !== -1) {
 		console.log("BG: " + cssText);
 	}
 	 if(cssRule.cssText && cssText.indexOf("background-image: url") !== -1) {  
+		//Reasons to ignore this entry in the stylesheet
+		//malformed css declaration
+		var bracketIndex = cssText.indexOf("{");
+		if(bracketIndex === -1) {
+			return true; //
+		}
+		//this selector doesn't exist in the current page
+		var cssSelector = cssText.substring(0, bracketIndex);
+		if(jQuery(cssSelector).length == 0) {
+			return true; 
+		}
+		//this selector doesn't exist in the current page
 		var cssBGImageMatch = cssText.match( /background-image: url\(([^)]+)\);/ );
 		if(!cssBGImageMatch || cssBGImageMatch.length < 2) {
 			return true;
 		}
-		var cssBGImage = cssBGImageMatch[1];
 		
-		$.getJSON("http://127.0.0.1:3000/?callback=?",
+		//css selector found something on the page and the definition has a background image
+		var cssBGImage = cssBGImageMatch[1];
+		jQuery.getJSON("http://127.0.0.1:3000/?callback=?",
 					{"url":cssBGImage},
 					function(imageInfo) {
 						console.log("URL: " + cssBGImage);
 						console.log("DATA: ");
 						console.log(imageInfo);
-						//add data elements to bgHolder
-						//var bgLi = $('<li></li>');
-						//$(bgLi).attr("")
-						var canvasEl = $('<canvas/>');
+						var canvasEl = jQuery('<canvas/>');
 						var context = canvasEl[0].getContext("2d");
 						var imageObj = new Image();
 						 imageObj.onload = function() {
 							debugger;
-							$(canvasEl).attr("width",this.width);
-							$(canvasEl).attr("height",this.height);
+							jQuery(canvasEl).attr("width",this.width);
+							jQuery(canvasEl).attr("height",this.height);
 						  context.drawImage(imageObj,0,0);
 						  var imageData = context.getImageData(0, 0, this.width, this.height);
 						  console.log("W/H: " + this.width + " / " + this.height);
@@ -182,8 +194,8 @@ function processCSSImages() {
 							  pixels[i+2] = lessDesaturated.rgb[2];
 						  }
 						  //set the canvas dimensions before putting the image data in so the size matches up
-							$(canvasEl).attr("width",this.width);
-							$(canvasEl).attr("height",this.height);
+							jQuery(canvasEl).attr("width",this.width);
+							jQuery(canvasEl).attr("height",this.height);
 						  context.putImageData(imageData, 0, 0, 0, 0, this.width, this.height);
 							//get the data url and 
 						  var dataUrl = canvasEl[0].toDataURL();
@@ -216,20 +228,68 @@ function processCSSImages() {
 }
 //*************END PROCESSING FUNCTIONS
 
-javascript: (function () {
-	var jsCode = document.createElement('script');
-    jsCode.setAttribute('type', 'text/javascript');  
-    jsCode.setAttribute('src', 'http://lesscss.googlecode.com/files/less-1.3.0.min.js');  
-	document.body.appendChild(jsCode);
+function loadScript(url, callback){
 
-	var jsCodeJQ = document.createElement('script');
-    jsCodeJQ.setAttribute('type', 'text/javascript');  
-    jsCodeJQ.setAttribute('src', 'https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js');  
-	document.body.appendChild(jsCodeJQ);
+    var script = document.createElement("script")
+    script.type = "text/javascript";
+
+    if (script.readyState){  //IE
+        script.onreadystatechange = function(){
+            if (script.readyState == "loaded" ||
+                    script.readyState == "complete"){
+                script.onreadystatechange = null;
+                callback();
+            }
+        };
+    } else {  //Others
+        script.onload = function(){
+            callback();
+        };
+    }
+
+    script.src = url;
+    document.getElementsByTagName("head")[0].appendChild(script);
+}
+
+function startProcessing() {
+	jQuery('iframe, embed').remove();
+
+	console.log("--------------");
+	processCSS();
+	console.log("--------------");
+	processImages();
+	console.log("--------------");
+	processCSSImages();
+	console.log("--------------");
+}
+
+javascript: (function () {
+	debugger;
+	var lessLoaded = false, jqueryLoaded = false;
 	
-	$(function() {
-		processCSS();
-		processImages();
-		processCSSImages();
+	//LESS
+	loadScript('http://lesscss.googlecode.com/files/less-1.3.0.min.js', function() {
+		debugger;
+		lessLoaded = true;
+		if(jqueryLoaded) {
+			console.log("LESS and jquery loaded");
+			jQuery(function() {
+				debugger;
+				startProcessing();
+			});
+		}
+	});
+	
+	//JQUERY
+	loadScript('https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js', function() {
+		debugger;
+		jqueryLoaded = true;
+		if(lessLoaded) {
+			console.log("less and JQUERY loaded");
+			jQuery(function() {
+				debugger;
+				startProcessing();
+			});
+		}
 	});
 }());
