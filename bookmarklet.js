@@ -258,7 +258,7 @@ function processCSSImagesDeferred() {
           return true;
         }
         //this selector doesn't exist in the current page
-        var cssBGImageMatch = cssText.match(/background-image: url\(([^)]+)\);/);
+        var cssBGImageMatch = cssText.match(/background-image: url\(([^)]+)\)/);
         if (!cssBGImageMatch || cssBGImageMatch.length < 2) {
           return true;
         }
@@ -326,7 +326,7 @@ function processCSSImagesDeferred() {
 
             //go through the css rules that have this image, replace the image, and insert the new rule
             jQuery.each(matchObj.cssTexts, function (jindex, cssText) {
-              var newCSSText = cssText.replace(/background-image: url\(([^)]+)\);/, "background-image: url(\"" + dataUrl + "\");");
+              var newCSSText = cssText.replace(/background-image: url\(([^)]+)\)/, "background-image: url(\"" + dataUrl + "\")");
               //console.log("Inserting newCSSText", newCSSText);
               document.styleSheets[document.styleSheets.length-2].insertRule(newCSSText, document.styleSheets[document.styleSheets.length-2].rules.length);
             });
@@ -375,9 +375,9 @@ function startProcessing() {
   jQuery('iframe, embed').remove();
 
   console.log("--------------");
-  //processCSS();
+  processCSS();
   console.log("--------------");
-  //processImages();
+  processImages();
   console.log("--------------");
   //processCSSImages();
   console.log("--------------");
