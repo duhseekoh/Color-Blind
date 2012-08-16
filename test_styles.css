@@ -1,1 +1,23 @@
 /*Test Styles*/
+body {
+    background: #FF0;
+    color: #0FF;
+}
+
+li.bg_image_1 {
+	background-image: url("./images/shedd.jpg") !important;
+	width: 430px;
+	height: 323px;
+}
+
+li.bg_image_2 {
+    background-image: url("http://colorvisiontesting.com/TCV-LOGO-&-insert-10-09-11-logo-only.gif");
+    width: 255px;
+    height: 232px;
+}
+
+div.color_box {
+    background: #F00;
+    color: #00F;
+    border: 8px solid #0F0;
+}
