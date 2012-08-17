@@ -1,3 +1,5 @@
+var mode = "extension"; //or "bookmarklet"
+
 //*************COLOR FUNCTIONS
 function rgb2hex(rgb) {
   rgb = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
@@ -63,22 +65,22 @@ function processImages() {
   console.log("Amount of images: " + jQuery("img").length);
   var canvasEl, context;
   jQuery("img").each(function (index, curImg) {
-//    if (jQuery(curImg).attr('src') && jQuery(curImg).attr('src').indexOf("http") !== -1) {
-//      //CROSS DOMAIN IMAGES
-//      canvasEl = jQuery("<canvas/>", {})[0];
-//      canvasEl.height = curImg.height;
-//      canvasEl.width = curImg.width;
-//      if (curImg.height > 5) {
-//        context = canvasEl.getContext("2d");
-//        jQuery(curImg).after(canvasEl);
-//        jQuery.getJSON("http://127.0.0.1:3000/?callback=?",
-//            {"url":jQuery(curImg).attr("src")},
-//            function (imageInfo) {
-//              //debugger;
-//              crossDomainImageCallback(imageInfo, context);
-//            });
-//      }
-//    } else {
+   if (mode === "bookmarklet" && jQuery(curImg).attr('src') && jQuery(curImg).attr('src').indexOf("http") !== -1) {
+     //CROSS DOMAIN IMAGES
+     canvasEl = jQuery("<canvas/>", {})[0];
+     canvasEl.height = curImg.height;
+     canvasEl.width = curImg.width;
+     if (curImg.height > 5) {
+       context = canvasEl.getContext("2d");
+       jQuery(curImg).after(canvasEl);
+       jQuery.getJSON("http://127.0.0.1:3000/?callback=?",
+           {"url":jQuery(curImg).attr("src")},
+           function (imageInfo) {
+             //debugger;
+             crossDomainImageCallback(imageInfo, context);
+           });
+     }
+   } else if(mode === "extension"){
       //LOCAL IMAGES
       canvasEl = jQuery("<canvas/>", {})[0];
       canvasEl.height = curImg.height;
@@ -104,7 +106,7 @@ function processImages() {
       };
       imageObj.src = jQuery(curImg).attr("src");
 
-//    }
+    }
     jQuery(curImg).remove();
   });
 }
@@ -191,43 +193,89 @@ function processCSSImagesDeferred() {
   debugger;
   jQuery(cssWithBGImageMatchArray).each(function (index, matchObj) {
 
-          console.log("URL: " + matchObj.cssBGImage);
-          console.log("DATA: ");
-          var canvasEl = jQuery('<canvas/>');
-          var context = canvasEl[0].getContext("2d");
-          var imageObj = new Image();
-          imageObj.onload = function () {
-            jQuery(canvasEl).attr("width", this.width);
-            jQuery(canvasEl).attr("height", this.height);
-            context.drawImage(imageObj, 0, 0);
-            var imageData = context.getImageData(0, 0, this.width, this.height);
-            console.log("W/H: " + this.width + " / " + this.height);
-            var pixels = imageData.data;
+		if(mode === "bookmarklet") {
+			jQuery.getJSON("http://127.0.0.1:3000/?callback=?",
+	        {"url":matchObj.cssBGImage},
+	        function (imageInfo) {
+	          console.log("URL: " + matchObj.cssBGImage);
+	          console.log("DATA: ");
+	          var canvasEl = jQuery('<canvas/>');
+	          var context = canvasEl[0].getContext("2d");
+	          var imageObj = new Image();
+	          imageObj.onload = function () {
+	            jQuery(canvasEl).attr("width", this.width);
+	            jQuery(canvasEl).attr("height", this.height);
+	            context.drawImage(imageObj, 0, 0);
+	            var imageData = context.getImageData(0, 0, this.width, this.height);
+	            console.log("W/H: " + this.width + " / " + this.height);
+	            var pixels = imageData.data;
 
-            for (var i = 0, il = pixels.length; i < il; i += 4) {
-              var rgbString = "rgb(" + pixels[i] + ", " + pixels[i + 1] + ", " + pixels[i + 2] + ")";
-              var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
-              pixels[i] = lessDesaturated.rgb[0];
-              pixels[i + 1] = lessDesaturated.rgb[1];
-              pixels[i + 2] = lessDesaturated.rgb[2];
-            }
-            //set the canvas dimensions before putting the image data in so the size matches up
-            jQuery(canvasEl).attr("width", this.width);
-            jQuery(canvasEl).attr("height", this.height);
-            context.putImageData(imageData, 0, 0, 0, 0, this.width, this.height);
-            //get the data url and
-            var dataUrl = canvasEl[0].toDataURL();
+	            for (var i = 0, il = pixels.length; i < il; i += 4) {
+	              var rgbString = "rgb(" + pixels[i] + ", " + pixels[i + 1] + ", " + pixels[i + 2] + ")";
+	              var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
+	              pixels[i] = lessDesaturated.rgb[0];
+	              pixels[i + 1] = lessDesaturated.rgb[1];
+	              pixels[i + 2] = lessDesaturated.rgb[2];
+	            }
+	            //set the canvas dimensions before putting the image data in so the size matches up
+	            jQuery(canvasEl).attr("width", this.width);
+	            jQuery(canvasEl).attr("height", this.height);
+	            context.putImageData(imageData, 0, 0, 0, 0, this.width, this.height);
+	            //get the data url and
+	            var dataUrl = canvasEl[0].toDataURL();
 
-            //go through the css rules that have this image, replace the image, and insert the new rule
-            jQuery.each(matchObj.cssTexts, function (jindex, cssText) {
-              var newCSSText = cssText.replace(/background-image: url\(([^)]+)\)/, "background-image: url(\"" + dataUrl + "\")");
-              //console.log("Inserting newCSSText", newCSSText);
-              document.styleSheets[document.styleSheets.length-2].insertRule(newCSSText, document.styleSheets[document.styleSheets.length-2].rules.length);
-            });
-          };
-          //pump the base64 image into the canvas img, onload above will trigger when the data is inserted
-          imageObj.src = matchObj.cssBGImage;
+	            //go through the css rules that have this image, replace the image, and insert the new rule
+	            jQuery.each(matchObj.cssTexts, function (jindex, cssText) {
+	              var newCSSText = cssText.replace(/background-image: url\(([^)]+)\)/, "background-image: url(\"" + dataUrl + "\")");
+	              //console.log("Inserting newCSSText", newCSSText);
+	              document.styleSheets[document.styleSheets.length-2].insertRule(newCSSText, document.styleSheets[document.styleSheets.length-2].rules.length);
+	            });
+	          };
+	          //pump the base64 image into the canvas img, onload above will trigger when the data is inserted
+	          imageObj.src = imageInfo.data;
+	        }).error(function () {
+	          console.log("error");
+	        });
+		}
+		
+		if(mode === "extension") {
+			console.log("URL: " + matchObj.cssBGImage);
+      console.log("DATA: ");
+      var canvasEl = jQuery('<canvas/>');
+      var context = canvasEl[0].getContext("2d");
+      var imageObj = new Image();
+      imageObj.onload = function () {
+        jQuery(canvasEl).attr("width", this.width);
+        jQuery(canvasEl).attr("height", this.height);
+        context.drawImage(imageObj, 0, 0);
+        var imageData = context.getImageData(0, 0, this.width, this.height);
+        console.log("W/H: " + this.width + " / " + this.height);
+        var pixels = imageData.data;
 
+        for (var i = 0, il = pixels.length; i < il; i += 4) {
+          var rgbString = "rgb(" + pixels[i] + ", " + pixels[i + 1] + ", " + pixels[i + 2] + ")";
+          var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
+          pixels[i] = lessDesaturated.rgb[0];
+          pixels[i + 1] = lessDesaturated.rgb[1];
+          pixels[i + 2] = lessDesaturated.rgb[2];
+        }
+        //set the canvas dimensions before putting the image data in so the size matches up
+        jQuery(canvasEl).attr("width", this.width);
+        jQuery(canvasEl).attr("height", this.height);
+        context.putImageData(imageData, 0, 0, 0, 0, this.width, this.height);
+        //get the data url and
+        var dataUrl = canvasEl[0].toDataURL();
+
+        //go through the css rules that have this image, replace the image, and insert the new rule
+        jQuery.each(matchObj.cssTexts, function (jindex, cssText) {
+          var newCSSText = cssText.replace(/background-image: url\(([^)]+)\)/, "background-image: url(\"" + dataUrl + "\")");
+          //console.log("Inserting newCSSText", newCSSText);
+          document.styleSheets[document.styleSheets.length-2].insertRule(newCSSText, document.styleSheets[document.styleSheets.length-2].rules.length);
+        });
+      };
+			imageObj.src = matchObj.cssBGImage;
+		}
+		
     //REGEX Explanation:
     //match a string starting with "background-image: url(".
     //the next paran denotes the start of the backreference that we want to start extracting the insides to save the url
@@ -270,13 +318,15 @@ function startProcessing() {
   console.log("--------------");
   processImages();
   console.log("--------------");
-  //processCSSImages();
-  console.log("--------------");
   processCSSImagesDeferred();
+  console.log("--------------");
 }
 
 (function () {
-  startProcessing();
+	jQuery(function() {
+		  startProcessing();
+	});
+
 //  debugger;
 //  var lessLoaded = false, jqueryLoaded = false;
 //

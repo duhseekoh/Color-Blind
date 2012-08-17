@@ -200,7 +200,6 @@ function processCSSImagesDeferred() {
         function (imageInfo) {
           console.log("URL: " + matchObj.cssBGImage);
           console.log("DATA: ");
-          console.log(imageInfo);
           var canvasEl = jQuery('<canvas/>');
           var context = canvasEl[0].getContext("2d");
           var imageObj = new Image();
