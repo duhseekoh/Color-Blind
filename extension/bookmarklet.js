@@ -86,24 +86,27 @@ function processImages() {
       canvasEl.height = curImg.height;
       canvasEl.width = curImg.width;
       //debugger;
-      context = canvasEl.getContext("2d");
+
       jQuery(curImg).after(canvasEl);
       var imageObj = new Image();
-      imageObj.onload = function () {
-        context.drawImage(imageObj, 0, 0);
-        var imageData = context.getImageData(0, 0, canvasEl.width, canvasEl.height);
-        var pixels = imageData.data;
+      (function(canvasElement) {
+        imageObj.onload = function () {
+          var context = canvasElement.getContext("2d");
+          context.drawImage(imageObj, 0, 0);
+          var imageData = context.getImageData(0, 0, canvasElement.width, canvasElement.height);
+          var pixels = imageData.data;
 
-        for (var i = 0, il = pixels.length; i < il; i += 4) {
-          var rgbString = "rgb(" + pixels[i] + ", " + pixels[i + 1] + ", " + pixels[i + 2] + ")";
-          var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
-          pixels[i] = lessDesaturated.rgb[0];
-          pixels[i + 1] = lessDesaturated.rgb[1];
-          pixels[i + 2] = lessDesaturated.rgb[2];
-        }
+          for (var i = 0, il = pixels.length; i < il; i += 4) {
+            var rgbString = "rgb(" + pixels[i] + ", " + pixels[i + 1] + ", " + pixels[i + 2] + ")";
+            var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
+            pixels[i] = lessDesaturated.rgb[0];
+            pixels[i + 1] = lessDesaturated.rgb[1];
+            pixels[i + 2] = lessDesaturated.rgb[2];
+          }
 
-        context.putImageData(imageData, 0, 0);
-      };
+          context.putImageData(imageData, 0, 0);
+        };
+      })(canvasEl);
       imageObj.src = jQuery(curImg).attr("src");
 
     }
@@ -323,36 +326,36 @@ function startProcessing() {
 }
 
 (function () {
-	jQuery(function() {
-		  startProcessing();
-	});
+//	jQuery(function() {
+//		  startProcessing();
+//	});
+//
+  debugger;
+  var lessLoaded = false, jqueryLoaded = false;
 
-//  debugger;
-//  var lessLoaded = false, jqueryLoaded = false;
-//
-//  //LESS
-//  loadScript('less-1.3.0.min.js', function () {
-//    debugger;
-//    lessLoaded = true;
-//    if (jqueryLoaded) {
-//      console.log("LESS and jquery loaded");
-//      jQuery(function () {
-//        debugger;
-//        startProcessing();
-//      });
-//    }
-//  });
-//
-//  //JQUERY
-//  loadScript('jquery-1.7.1.min.js', function () {
-//    debugger;
-//    jqueryLoaded = true;
-//    if (lessLoaded) {
-//      console.log("less and JQUERY loaded");
-//      jQuery(function () {
-//        debugger;
-//        startProcessing();
-//      });
-//    }
-//  });
+  //LESS
+  loadScript('https://lesscss.googlecode.com/files/less-1.3.0.min.js', function () {
+    debugger;
+    lessLoaded = true;
+    if (jqueryLoaded) {
+      console.log("LESS and jquery loaded");
+      jQuery(function () {
+        debugger;
+        startProcessing();
+      });
+    }
+  });
+
+  //JQUERY
+  loadScript('https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js', function () {
+    debugger;
+    jqueryLoaded = true;
+    if (lessLoaded) {
+      console.log("less and JQUERY loaded");
+      jQuery(function () {
+        debugger;
+        startProcessing();
+      });
+    }
+  });
 }());
