@@ -70,6 +70,7 @@ function processImages() {
      canvasEl = jQuery("<canvas/>", {})[0];
      canvasEl.height = curImg.height;
      canvasEl.width = curImg.width;
+     $(canvasEl).copyCSS(curImg);
      if (curImg.height > 5) {
        context = canvasEl.getContext("2d");
        jQuery(curImg).after(canvasEl);
@@ -85,8 +86,8 @@ function processImages() {
       canvasEl = jQuery("<canvas/>", {})[0];
       canvasEl.height = curImg.height;
       canvasEl.width = curImg.width;
-      //debugger;
 
+      //debugger;
       jQuery(curImg).after(canvasEl);
       var imageObj = new Image();
       (function(canvasElement) {
@@ -125,7 +126,9 @@ function processCSS() {
       var cssText = cssRule.cssText;
       var newCssText = cssText.replace(/rgb\((\d+),\s(\d+),\s(\d+)\)/g, convertRGBAndDesaturate);
       if (cssText !== newCssText) {
-        ss.insertRule(newCssText, ss.rules.length);
+        debugger;
+        ss.deleteRule(index);
+        ss.insertRule(newCssText, index);
         //console.log(newCssText);
       }
     });
@@ -326,18 +329,14 @@ function startProcessing() {
 }
 
 (function () {
-//	jQuery(function() {
-//		  startProcessing();
-//	});
-//
   debugger;
-  var lessLoaded = false, jqueryLoaded = false;
+  var lessLoaded = false, jqueryLoaded = false, cssCopyLoaded = false;
 
   //LESS
   loadScript('https://lesscss.googlecode.com/files/less-1.3.0.min.js', function () {
     debugger;
     lessLoaded = true;
-    if (jqueryLoaded) {
+    if (jqueryLoaded && cssCopyLoaded) {
       console.log("LESS and jquery loaded");
       jQuery(function () {
         debugger;
@@ -350,8 +349,21 @@ function startProcessing() {
   loadScript('https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js', function () {
     debugger;
     jqueryLoaded = true;
-    if (lessLoaded) {
+    if (lessLoaded && cssCopyLoaded) {
       console.log("less and JQUERY loaded");
+      jQuery(function () {
+        debugger;
+        startProcessing();
+      });
+    }
+  });
+
+  //JQUERY CSS COPY PLUGIN
+  loadScript('https://raw.github.com/moagrius/copycss/master/jquery.copycss.js', function () {
+    debugger;
+    cssCopyLoaded = true;
+    if (lessLoaded && jqueryLoaded) {
+      console.log("less and jquery and CSSCOPY loaded");
       jQuery(function () {
         debugger;
         startProcessing();
