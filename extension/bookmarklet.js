@@ -82,12 +82,9 @@ function processImages() {
            });
      }
    } else if(mode === "extension"){
-      //LOCAL IMAGES
       canvasEl = jQuery("<canvas/>", {})[0];
       canvasEl.height = curImg.height;
       canvasEl.width = curImg.width;
-
-      //debugger;
       jQuery(curImg).after(canvasEl);
       var imageObj = new Image();
       (function(canvasElement) {
@@ -108,7 +105,14 @@ function processImages() {
           context.putImageData(imageData, 0, 0);
         };
       })(canvasEl);
-      imageObj.src = jQuery(curImg).attr("src");
+
+     //Instead of setting the source directly on the image object, lets use a chrome background page to get the data url
+     //This prevents the issue with cross domain problems since a chrome extension background script does not
+     //adhere to the same security constraints.
+     debugger;
+     chrome.extension.sendMessage({imageSrc: jQuery(curImg).attr("src")}, function(response) {
+        imageObj.src = response.dataUrl;
+     });
 
     }
     jQuery(curImg).remove();
@@ -126,7 +130,6 @@ function processCSS() {
       var cssText = cssRule.cssText;
       var newCssText = cssText.replace(/rgb\((\d+),\s(\d+),\s(\d+)\)/g, convertRGBAndDesaturate);
       if (cssText !== newCssText) {
-        debugger;
         ss.deleteRule(index);
         ss.insertRule(newCssText, index);
         //console.log(newCssText);
@@ -330,44 +333,37 @@ function startProcessing() {
 
 (function () {
   debugger;
-  var lessLoaded = false, jqueryLoaded = false, cssCopyLoaded = false;
+  var lessLoaded = false, jqueryLoaded = false;
 
   //LESS
   loadScript('https://lesscss.googlecode.com/files/less-1.3.0.min.js', function () {
-    debugger;
+//    debugger;
     lessLoaded = true;
-    if (jqueryLoaded && cssCopyLoaded) {
+    if (jqueryLoaded) {
       console.log("LESS and jquery loaded");
       jQuery(function () {
-        debugger;
-        startProcessing();
+        //JQUERY CSS COPY PLUGIN
+        loadScript('https://raw.github.com/moagrius/copycss/master/jquery.copycss.js', function () {
+          startProcessing();
+        });
       });
     }
   });
 
   //JQUERY
   loadScript('https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js', function () {
-    debugger;
+//    debugger;
     jqueryLoaded = true;
-    if (lessLoaded && cssCopyLoaded) {
+    if (lessLoaded) {
       console.log("less and JQUERY loaded");
       jQuery(function () {
-        debugger;
-        startProcessing();
+        //JQUERY CSS COPY PLUGIN
+        loadScript('https://raw.github.com/moagrius/copycss/master/jquery.copycss.js', function () {
+          startProcessing();
+        });
       });
     }
   });
 
-  //JQUERY CSS COPY PLUGIN
-  loadScript('https://raw.github.com/moagrius/copycss/master/jquery.copycss.js', function () {
-    debugger;
-    cssCopyLoaded = true;
-    if (lessLoaded && jqueryLoaded) {
-      console.log("less and jquery and CSSCOPY loaded");
-      jQuery(function () {
-        debugger;
-        startProcessing();
-      });
-    }
-  });
+
 }());
