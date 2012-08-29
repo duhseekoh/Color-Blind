@@ -248,41 +248,51 @@ function processCSSImagesDeferred() {
 		}
 		
 		if(mode === "extension") {
-			console.log("URL: " + matchObj.cssBGImage);
-      console.log("DATA: ");
-      var canvasEl = jQuery('<canvas/>');
-      var context = canvasEl[0].getContext("2d");
       var imageObj = new Image();
-      imageObj.onload = function () {
-        jQuery(canvasEl).attr("width", this.width);
-        jQuery(canvasEl).attr("height", this.height);
-        context.drawImage(imageObj, 0, 0);
-        var imageData = context.getImageData(0, 0, this.width, this.height);
-        console.log("W/H: " + this.width + " / " + this.height);
-        var pixels = imageData.data;
+      (function(matchObject) {
+        var canvasEl = jQuery('<canvas/>'),
+            context = canvasEl[0].getContext("2d");
+        imageObj.onload = function () {
+          var width = imageObj.width,
+              height = imageObj.height;
+          jQuery(canvasEl).attr("width", width);
+          jQuery(canvasEl).attr("height", height);
+          context.drawImage(imageObj, 0, 0);
+          var imageData = context.getImageData(0, 0, width, height);
+          console.log("CSS BG - W/H: " + width + " / " + height);
+          var pixels = imageData.data;
 
-        for (var i = 0, il = pixels.length; i < il; i += 4) {
-          var rgbString = "rgb(" + pixels[i] + ", " + pixels[i + 1] + ", " + pixels[i + 2] + ")";
-          var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
-          pixels[i] = lessDesaturated.rgb[0];
-          pixels[i + 1] = lessDesaturated.rgb[1];
-          pixels[i + 2] = lessDesaturated.rgb[2];
-        }
-        //set the canvas dimensions before putting the image data in so the size matches up
-        jQuery(canvasEl).attr("width", this.width);
-        jQuery(canvasEl).attr("height", this.height);
-        context.putImageData(imageData, 0, 0, 0, 0, this.width, this.height);
-        //get the data url and
-        var dataUrl = canvasEl[0].toDataURL();
+          for (var i = 0, il = pixels.length; i < il; i += 4) {
+            var rgbString = "rgb(" + pixels[i] + ", " + pixels[i + 1] + ", " + pixels[i + 2] + ")";
+            var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
+            pixels[i] = lessDesaturated.rgb[0];
+            pixels[i + 1] = lessDesaturated.rgb[1];
+            pixels[i + 2] = lessDesaturated.rgb[2];
+          }
+          //set the canvas dimensions before putting the image data in so the size matches up
+          jQuery(canvasEl).attr("width", width);
+          jQuery(canvasEl).attr("height", height);
+          context.putImageData(imageData, 0, 0, 0, 0, width, height);
+          //get the data url and
+          var dataUrl = canvasEl[0].toDataURL();
 
-        //go through the css rules that have this image, replace the image, and insert the new rule
-        jQuery.each(matchObj.cssTexts, function (jindex, cssText) {
-          var newCSSText = cssText.replace(/background-image: url\(([^)]+)\)/, "background-image: url(\"" + dataUrl + "\")");
-          //console.log("Inserting newCSSText", newCSSText);
-          document.styleSheets[document.styleSheets.length-2].insertRule(newCSSText, document.styleSheets[document.styleSheets.length-2].rules.length);
-        });
-      };
-			imageObj.src = matchObj.cssBGImage;
+          //go through the css rules that have this image, replace the image, and insert the new rule
+          jQuery.each(matchObject.cssTexts, function (jindex, cssText) {
+            var newCSSText = cssText.replace(/background-image: url\(([^)]+)\)/, "background-image: url(\"" + dataUrl + "\")");
+            //console.log("Inserting newCSSText", newCSSText);
+            document.styleSheets[document.styleSheets.length-2].insertRule(newCSSText, document.styleSheets[document.styleSheets.length-2].rules.length);
+          });
+        };
+      }(matchObj));
+
+      //Instead of setting the source directly on the image object, lets use a chrome background page to get the data url
+      //This prevents the issue with cross domain problems since a chrome extension background script does not
+      //adhere to the same security constraints.
+      debugger;
+      chrome.extension.sendMessage({imageSrc: matchObj.cssBGImage}, function(response) {
+        imageObj.src = response.dataUrl;
+      });
+
 		}
 		
     //REGEX Explanation:
