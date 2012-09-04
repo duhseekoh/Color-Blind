@@ -110,7 +110,7 @@ function processImages() {
      //This prevents the issue with cross domain problems since a chrome extension background script does not
      //adhere to the same security constraints.
      debugger;
-     chrome.extension.sendMessage({imageSrc: jQuery(curImg).attr("src")}, function(response) {
+     chrome.extension.sendMessage({name:"getDataUrl", imageSrc: jQuery(curImg).attr("src")}, function(response) {
         imageObj.src = response.dataUrl;
      });
 
@@ -118,6 +118,36 @@ function processImages() {
     jQuery(curImg).remove();
   });
 }
+
+function processCSSCrossOrigin() {
+  console.log("Processing CSS Cross Origin");
+  console.log("Total Stylesheets: " + document.styleSheets.length);
+  jQuery(document.styleSheets).each(function (ssIndex, ss) {
+    if (ss.rules) { return; }
+    debugger;
+
+    chrome.extension.sendMessage({name:"getStyleSheet", href: ss.href}, function(response) {
+      debugger;
+      console.log(response);
+      if(response.rules) {
+        //cannot append to a cross-origin stylesheet, so need to create a new stylesheet
+        var newStyleElement = document.createElement('style');
+        document.getElementsByTagName('head')[0].appendChild(newStyleElement);
+        var newStyleSheet = document.styleSheets[document.styleSheets.length - 1];
+        jQuery(response.rules).each(function(ruleIndex, cssText) {
+          var newCssText = cssText.replace(/rgb\((\d+),\s(\d+),\s(\d+)\)/g, convertRGBAndDesaturate);
+//          if (cssText !== newCssText) {
+            newStyleSheet.insertRule(newCssText);
+            //console.log(newCssText);
+//          }
+        });
+      }
+    });
+
+  });
+  console.log("Done Processing CSS Cross Origin");
+}
+
 
 //CSS FILES
 function processCSS() {
@@ -333,11 +363,12 @@ function startProcessing() {
   jQuery('iframe, embed').remove();
 
   console.log("--------------");
-  processCSS();
+//  processCSS();
+  processCSSCrossOrigin();
   console.log("--------------");
-  processImages();
+//  processImages();
   console.log("--------------");
-  processCSSImagesDeferred();
+//  processCSSImagesDeferred();
   console.log("--------------");
 }
 
