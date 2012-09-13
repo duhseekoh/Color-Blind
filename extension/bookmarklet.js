@@ -63,7 +63,7 @@ function crossDomainImageCallback(imageInfo, canvasContext) {
 //IMAGES
 function processImages() {
   console.log("Amount of images: " + jQuery("img").length);
-  var canvasEl, context;
+  var wrapperEl, canvasEl, context;
   jQuery("img").each(function (index, curImg) {
    if (mode === "bookmarklet" && jQuery(curImg).attr('src') && jQuery(curImg).attr('src').indexOf("http") !== -1) {
      //CROSS DOMAIN IMAGES
@@ -83,15 +83,16 @@ function processImages() {
      }
    } else if(mode === "extension"){
       canvasEl = jQuery("<canvas/>", {})[0];
-      canvasEl.height = curImg.height;
-      canvasEl.width = curImg.width;
       jQuery(curImg).after(canvasEl);
       var imageObj = new Image();
-      (function(canvasElement) {
+      (function(canvasElement, displayedWidth, displayedHeight) {
         imageObj.onload = function () {
+          //set the canvas width and height to the natural size of the image, so the image takes up the entire canvas
+          canvasElement.height = imageObj.height;
+          canvasElement.width = imageObj.width;
           var context = canvasElement.getContext("2d");
           context.drawImage(imageObj, 0, 0);
-          var imageData = context.getImageData(0, 0, canvasElement.width, canvasElement.height);
+          var imageData = context.getImageData(0, 0, imageObj.width, imageObj.height);
           var pixels = imageData.data;
 
           for (var i = 0, il = pixels.length; i < il; i += 4) {
@@ -103,8 +104,11 @@ function processImages() {
           }
 
           context.putImageData(imageData, 0, 0);
+          //set the canvas css size to the originally displayed size of the image
+          jQuery(canvasElement).css("width",displayedWidth);
+          jQuery(canvasElement).css("height",displayedHeight);
         };
-      })(canvasEl);
+      })(canvasEl, jQuery(curImg).width(), jQuery(curImg).height());
 
      //Instead of setting the source directly on the image object, lets use a chrome background page to get the data url
      //This prevents the issue with cross domain problems since a chrome extension background script does not
@@ -117,35 +121,6 @@ function processImages() {
     }
     jQuery(curImg).remove();
   });
-}
-
-function processCSSCrossOrigin() {
-  console.log("Processing CSS Cross Origin");
-  console.log("Total Stylesheets: " + document.styleSheets.length);
-  jQuery(document.styleSheets).each(function (ssIndex, ss) {
-    if (ss.rules) { return; }
-    debugger;
-
-    chrome.extension.sendMessage({name:"getStyleSheet", href: ss.href}, function(response) {
-      debugger;
-      console.log(response);
-      if(response.rules) {
-        //cannot append to a cross-origin stylesheet, so need to create a new stylesheet
-        var newStyleElement = document.createElement('style');
-        document.getElementsByTagName('head')[0].appendChild(newStyleElement);
-        var newStyleSheet = document.styleSheets[document.styleSheets.length - 1];
-        jQuery(response.rules).each(function(ruleIndex, cssText) {
-          var newCssText = cssText.replace(/rgb\((\d+),\s(\d+),\s(\d+)\)/g, convertRGBAndDesaturate);
-//          if (cssText !== newCssText) {
-            newStyleSheet.insertRule(newCssText);
-            //console.log(newCssText);
-//          }
-        });
-      }
-    });
-
-  });
-  console.log("Done Processing CSS Cross Origin");
 }
 
 
@@ -167,6 +142,45 @@ function processCSS() {
     });
   });
   console.log("Done Processing CSS");
+}
+
+//CSS FILES - Cross Origin - Note:this currently only works as part of the chrome extension.. not as part of the bookmarklet
+function processCSSCrossOrigin() {
+  if(mode !== "extension") {
+    return false;
+  }
+
+  console.log("Processing CSS Cross Origin");
+  console.log("Total Stylesheets: " + document.styleSheets.length);
+  jQuery(document.styleSheets).each(function (ssIndex, ss) {
+    if (ss.rules) { return; }
+    debugger;
+
+    chrome.extension.sendMessage({name:"getStyleSheet", href: ss.href}, function(response) {
+      debugger;
+      console.log("Received a response for stylesheet " + ssIndex);
+      //console.log(response);
+      if(response.rules) {
+        //cannot append to a cross-origin stylesheet, so need to create a new stylesheet
+        var newStyleElement = document.createElement('style');
+        document.getElementsByTagName('head')[0].appendChild(newStyleElement);
+        var newStyleSheet = document.styleSheets[document.styleSheets.length - 1];
+        jQuery(response.rules).each(function(ruleIndex, cssText) {
+          if(!cssText) {
+            return true;
+          }
+          try {
+            var newCssText = cssText.replace(/rgb\((\d+),\s(\d+),\s(\d+)\)/g, convertRGBAndDesaturate);
+          } catch(ex) {
+            console.log("**Exception replacing rgb css text in stylesheet " + ssIndex);
+          }
+          newStyleSheet.insertRule(newCssText, ruleIndex);
+        });
+        console.log("Done adding converted rules for stylesheet " + ssIndex);
+      }
+    });
+    console.log("Sent a request for stylesheet " + ssIndex);
+  });
 }
 
 function processCSSImagesDeferred() {
@@ -363,13 +377,14 @@ function startProcessing() {
   jQuery('iframe, embed').remove();
 
   console.log("--------------");
-//  processCSS();
+  processCSS();
+  console.log("--------------");
   processCSSCrossOrigin();
   console.log("--------------");
-//  processImages();
+  processImages();
   console.log("--------------");
 //  processCSSImagesDeferred();
-  console.log("--------------");
+//  console.log("--------------");
 }
 
 (function () {

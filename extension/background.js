@@ -8,6 +8,8 @@ chrome.extension.onMessage.addListener(
       var img = new Image();
       img.onload = function() {
         var canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
         var context = canvas.getContext("2d");
         context.drawImage(img, 0, 0);
         sendResponse({dataUrl: canvas.toDataURL()});
