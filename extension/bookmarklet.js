@@ -383,8 +383,8 @@ function startProcessing() {
   console.log("--------------");
   processImages();
   console.log("--------------");
-//  processCSSImagesDeferred();
-//  console.log("--------------");
+  processCSSImagesDeferred();
+  console.log("--------------");
 }
 
 (function () {
