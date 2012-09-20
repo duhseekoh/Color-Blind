@@ -170,6 +170,11 @@ function processCSSCrossOrigin() {
             return true;
           }
           try {
+            //INSERT check method for whether or not to process for bg images
+            //If need to process bg images, send a message. In the response, change
+            //  alter the image color AND the bg color, then insert the rule at the
+            //  correct spot.
+            //Otherwise, just process the bg color.
             var newCssText = cssText.replace(/rgb\((\d+),\s(\d+),\s(\d+)\)/g, convertRGBAndDesaturate);
           } catch(ex) {
             console.log("**Exception replacing rgb css text in stylesheet " + ssIndex);
