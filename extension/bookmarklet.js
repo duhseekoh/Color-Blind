@@ -34,95 +34,51 @@ function convertRGBAndDesaturateLessColor(rgbString) {
   desaturatedLessColor = less.tree.functions.desaturate(lessColor, {"value":100});
   return desaturatedLessColor;
 }
+
+function convertPixelColor(pixels, colorChoice) {
+  for (var i = 0, il = pixels.length; i < il; i += 4) {
+    var rgbString = "rgb(" + pixels[i] + ", " + pixels[i + 1] + ", " + pixels[i + 2] + ")";
+    var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
+    pixels[i] = lessDesaturated.rgb[0];
+    pixels[i + 1] = lessDesaturated.rgb[1];
+    pixels[i + 2] = lessDesaturated.rgb[2];
+  }
+}
 //*************END COLOR FUNCTIONS
 
 //*************PROCESSING FUNCTIONS
-function crossDomainImageCallback(imageInfo, canvasContext) {
-  debugger;
-  var image = new Image();
-  image.src = imageInfo.data;
-  console.log("2: Width: " + image.width + ", Height: " + image.height);
-  image.onload = function () {
-    console.log("3: Width: " + image.width + ", Height: " + image.height);
-    canvasContext.drawImage(image, 0, 0, image.width, image.height);
-    var imageData = canvasContext.getImageData(0, 0, image.width, image.height);
-    var pixels = imageData.data;
+function convertRemoteCSSFileToLocal() {
+  if(mode !== "extension") {
+    return false;
+  }
 
-    for (var i = 0, il = pixels.length; i < il; i += 4) {
-      var rgbString = "rgb(" + pixels[i] + ", " + pixels[i + 1] + ", " + pixels[i + 2] + ")";
-      var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
-      pixels[i] = lessDesaturated.rgb[0];
-      pixels[i + 1] = lessDesaturated.rgb[1];
-      pixels[i + 2] = lessDesaturated.rgb[2];
-    }
+  console.log("Importing remote stylesheets");
+  console.log("Total Stylesheets: " + document.styleSheets.length);
+  jQuery(document.styleSheets).each(function (ssIndex, ss) {
+    if (ss.rules) { return; }
     debugger;
-    canvasContext.putImageData(imageData, 0, 0);
-  };
-}
 
-//IMAGES
-function processImages() {
-  console.log("Amount of images: " + jQuery("img").length);
-  var wrapperEl, canvasEl, context;
-  jQuery("img").each(function (index, curImg) {
-   if (mode === "bookmarklet" && jQuery(curImg).attr('src') && jQuery(curImg).attr('src').indexOf("http") !== -1) {
-     //CROSS DOMAIN IMAGES
-     canvasEl = jQuery("<canvas/>", {})[0];
-     canvasEl.height = curImg.height;
-     canvasEl.width = curImg.width;
-     $(canvasEl).copyCSS(curImg);
-     if (curImg.height > 5) {
-       context = canvasEl.getContext("2d");
-       jQuery(curImg).after(canvasEl);
-       jQuery.getJSON("http://127.0.0.1:3000/?callback=?",
-           {"url":jQuery(curImg).attr("src")},
-           function (imageInfo) {
-             //debugger;
-             crossDomainImageCallback(imageInfo, context);
-           });
-     }
-   } else if(mode === "extension"){
-      canvasEl = jQuery("<canvas/>", {})[0];
-      jQuery(curImg).after(canvasEl);
-      var imageObj = new Image();
-      (function(canvasElement, displayedWidth, displayedHeight) {
-        imageObj.onload = function () {
-          //set the canvas width and height to the natural size of the image, so the image takes up the entire canvas
-          canvasElement.height = imageObj.height;
-          canvasElement.width = imageObj.width;
-          var context = canvasElement.getContext("2d");
-          context.drawImage(imageObj, 0, 0);
-          var imageData = context.getImageData(0, 0, imageObj.width, imageObj.height);
-          var pixels = imageData.data;
-
-          for (var i = 0, il = pixels.length; i < il; i += 4) {
-            var rgbString = "rgb(" + pixels[i] + ", " + pixels[i + 1] + ", " + pixels[i + 2] + ")";
-            var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
-            pixels[i] = lessDesaturated.rgb[0];
-            pixels[i + 1] = lessDesaturated.rgb[1];
-            pixels[i + 2] = lessDesaturated.rgb[2];
+    chrome.extension.sendMessage({name:"getStyleSheet", href: ss.href}, function(response) {
+      debugger;
+      console.log("Received a response for stylesheet " + ssIndex);
+      //console.log(response);
+      if(response.rules) {
+        //cannot append to a cross-origin stylesheet, so need to create a new stylesheet
+        var newStyleElement = document.createElement('style');
+        document.getElementsByTagName('head')[0].appendChild(newStyleElement);
+        var newStyleSheet = document.styleSheets[document.styleSheets.length - 1];
+        jQuery(response.rules).each(function(ruleIndex, cssText) {
+          if(!cssText) {
+            return true;
           }
-
-          context.putImageData(imageData, 0, 0);
-          //set the canvas css size to the originally displayed size of the image
-          jQuery(canvasElement).css("width",displayedWidth);
-          jQuery(canvasElement).css("height",displayedHeight);
-        };
-      })(canvasEl, jQuery(curImg).width(), jQuery(curImg).height());
-
-     //Instead of setting the source directly on the image object, lets use a chrome background page to get the data url
-     //This prevents the issue with cross domain problems since a chrome extension background script does not
-     //adhere to the same security constraints.
-     debugger;
-     chrome.extension.sendMessage({name:"getDataUrl", imageSrc: jQuery(curImg).attr("src")}, function(response) {
-        imageObj.src = response.dataUrl;
-     });
-
-    }
-    jQuery(curImg).remove();
+          newStyleSheet.insertRule(cssText, ruleIndex);
+        });
+        console.log("Done importing remote stylesheet " + ssIndex);
+      }
+    });
+    console.log("Sent a request for stylesheet " + ssIndex);
   });
 }
-
 
 //CSS FILES
 function processCSS() {
@@ -144,58 +100,62 @@ function processCSS() {
   console.log("Done Processing CSS");
 }
 
-//CSS FILES - Cross Origin - Note:this currently only works as part of the chrome extension.. not as part of the bookmarklet
-function processCSSCrossOrigin() {
-  if(mode !== "extension") {
-    return false;
-  }
+//IMAGES
+function processImages() {
+  console.log("Amount of images: " + jQuery("img").length);
+  var wrapperEl, canvasEl, context;
+  jQuery("img").each(function (index, curImg) {
+    if(mode === "extension"){
+      canvasEl = jQuery("<canvas/>", {})[0];
+      jQuery(curImg).after(canvasEl);
+      jQuery(canvasEl).copyCSS(curImg);
+      var imageObj = new Image();
+      (function(canvasElement, displayedWidth, displayedHeight) {
+        imageObj.onload = function () {
+          //set the canvas width and height to the natural size of the image, so the image takes up the entire canvas
+          canvasElement.height = imageObj.height;
+          canvasElement.width = imageObj.width;
+          var context = canvasElement.getContext("2d");
+          context.drawImage(imageObj, 0, 0);
+          var imageData = context.getImageData(0, 0, imageObj.width, imageObj.height);
+          var pixels = imageData.data;
 
-  console.log("Processing CSS Cross Origin");
-  console.log("Total Stylesheets: " + document.styleSheets.length);
-  jQuery(document.styleSheets).each(function (ssIndex, ss) {
-    if (ss.rules) { return; }
-    debugger;
+          convertPixelColor(pixels);
 
-    chrome.extension.sendMessage({name:"getStyleSheet", href: ss.href}, function(response) {
-      debugger;
-      console.log("Received a response for stylesheet " + ssIndex);
-      //console.log(response);
-      if(response.rules) {
-        //cannot append to a cross-origin stylesheet, so need to create a new stylesheet
-        var newStyleElement = document.createElement('style');
-        document.getElementsByTagName('head')[0].appendChild(newStyleElement);
-        var newStyleSheet = document.styleSheets[document.styleSheets.length - 1];
-        jQuery(response.rules).each(function(ruleIndex, cssText) {
-          if(!cssText) {
-            return true;
-          }
-          try {
-            //INSERT check method for whether or not to process for bg images
-            //If need to process bg images, send a message. In the response, change
-            //  alter the image color AND the bg color, then insert the rule at the
-            //  correct spot.
-            //Otherwise, just process the bg color.
-            var newCssText = cssText.replace(/rgb\((\d+),\s(\d+),\s(\d+)\)/g, convertRGBAndDesaturate);
-          } catch(ex) {
-            console.log("**Exception replacing rgb css text in stylesheet " + ssIndex);
-          }
-          newStyleSheet.insertRule(newCssText, ruleIndex);
-        });
-        console.log("Done adding converted rules for stylesheet " + ssIndex);
-      }
-    });
-    console.log("Sent a request for stylesheet " + ssIndex);
+//          for (var i = 0, il = pixels.length; i < il; i += 4) {
+//            var rgbString = "rgb(" + pixels[i] + ", " + pixels[i + 1] + ", " + pixels[i + 2] + ")";
+//            var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
+//            pixels[i] = lessDesaturated.rgb[0];
+//            pixels[i + 1] = lessDesaturated.rgb[1];
+//            pixels[i + 2] = lessDesaturated.rgb[2];
+//          }
+
+          context.putImageData(imageData, 0, 0);
+          //set the canvas css size to the originally displayed size of the image
+          jQuery(canvasElement).css("width",displayedWidth);
+          jQuery(canvasElement).css("height",displayedHeight);
+        };
+      })(canvasEl, jQuery(curImg).width(), jQuery(curImg).height());
+
+     //Instead of setting the source directly on the image object, lets use a chrome background page to get the data url
+     //This prevents the issue with cross domain problems since a chrome extension background script does not
+     //adhere to the same security constraints.
+     debugger;
+     chrome.extension.sendMessage({name:"getDataUrl", imageSrc: jQuery(curImg).attr("src")}, function(response) {
+        imageObj.src = response.dataUrl;
+     });
+
+    }
+    jQuery(curImg).remove();
   });
 }
 
-function processCSSImagesDeferred() {
+//CSS BACKGROUND IMAGES
+function processCSSImages() {
   var totalRules = 0, cssWithBGImageMatchArray = [], styleSheetsProcessed = 0;
   jQuery(document.styleSheets).each(function (ssIndex, ss) {
     jQuery(ss.rules).each(function (index, cssRule) {
       var cssText = cssRule.cssText;
-      if (cssRule.cssText && cssText.indexOf("background:") !== -1) {
-        //console.log(ssIndex + "BG: " + cssText);
-      }
       if (cssRule.cssText && cssText.indexOf("background-image: url") !== -1) {
         console.log(ssIndex + " BG Image: " + cssText);
         //Reasons to ignore this entry in the stylesheet
@@ -250,52 +210,6 @@ function processCSSImagesDeferred() {
   console.log(cssWithBGImageMatchArray);
   debugger;
   jQuery(cssWithBGImageMatchArray).each(function (index, matchObj) {
-
-		if(mode === "bookmarklet") {
-			jQuery.getJSON("http://127.0.0.1:3000/?callback=?",
-	        {"url":matchObj.cssBGImage},
-	        function (imageInfo) {
-	          console.log("URL: " + matchObj.cssBGImage);
-	          console.log("DATA: ");
-	          var canvasEl = jQuery('<canvas/>');
-	          var context = canvasEl[0].getContext("2d");
-	          var imageObj = new Image();
-	          imageObj.onload = function () {
-	            jQuery(canvasEl).attr("width", this.width);
-	            jQuery(canvasEl).attr("height", this.height);
-	            context.drawImage(imageObj, 0, 0);
-	            var imageData = context.getImageData(0, 0, this.width, this.height);
-	            console.log("W/H: " + this.width + " / " + this.height);
-	            var pixels = imageData.data;
-
-	            for (var i = 0, il = pixels.length; i < il; i += 4) {
-	              var rgbString = "rgb(" + pixels[i] + ", " + pixels[i + 1] + ", " + pixels[i + 2] + ")";
-	              var lessDesaturated = convertRGBAndDesaturateLessColor(rgbString);
-	              pixels[i] = lessDesaturated.rgb[0];
-	              pixels[i + 1] = lessDesaturated.rgb[1];
-	              pixels[i + 2] = lessDesaturated.rgb[2];
-	            }
-	            //set the canvas dimensions before putting the image data in so the size matches up
-	            jQuery(canvasEl).attr("width", this.width);
-	            jQuery(canvasEl).attr("height", this.height);
-	            context.putImageData(imageData, 0, 0, 0, 0, this.width, this.height);
-	            //get the data url and
-	            var dataUrl = canvasEl[0].toDataURL();
-
-	            //go through the css rules that have this image, replace the image, and insert the new rule
-	            jQuery.each(matchObj.cssTexts, function (jindex, cssText) {
-	              var newCSSText = cssText.replace(/background-image: url\(([^)]+)\)/, "background-image: url(\"" + dataUrl + "\")");
-	              //console.log("Inserting newCSSText", newCSSText);
-	              document.styleSheets[document.styleSheets.length-2].insertRule(newCSSText, document.styleSheets[document.styleSheets.length-2].rules.length);
-	            });
-	          };
-	          //pump the base64 image into the canvas img, onload above will trigger when the data is inserted
-	          imageObj.src = imageInfo.data;
-	        }).error(function () {
-	          console.log("error");
-	        });
-		}
-		
 		if(mode === "extension") {
       var imageObj = new Image();
       (function(matchObject) {
@@ -329,7 +243,7 @@ function processCSSImagesDeferred() {
           jQuery.each(matchObject.cssTexts, function (jindex, cssText) {
             var newCSSText = cssText.replace(/background-image: url\(([^)]+)\)/, "background-image: url(\"" + dataUrl + "\")");
             //console.log("Inserting newCSSText", newCSSText);
-            document.styleSheets[document.styleSheets.length-2].insertRule(newCSSText, document.styleSheets[document.styleSheets.length-2].rules.length);
+            document.styleSheets[document.styleSheets.length-1].insertRule(newCSSText, document.styleSheets[document.styleSheets.length-1].rules.length);
           });
         };
       }(matchObj));
@@ -337,8 +251,8 @@ function processCSSImagesDeferred() {
       //Instead of setting the source directly on the image object, lets use a chrome background page to get the data url
       //This prevents the issue with cross domain problems since a chrome extension background script does not
       //adhere to the same security constraints.
-      debugger;
-      chrome.extension.sendMessage({imageSrc: matchObj.cssBGImage}, function(response) {
+//      debugger;
+      chrome.extension.sendMessage({name:"getDataUrl", imageSrc: matchObj.cssBGImage}, function(response) {
         imageObj.src = response.dataUrl;
       });
 
@@ -381,14 +295,16 @@ function loadScript(url, callback) {
 function startProcessing() {
   jQuery('iframe, embed').remove();
 
+  convertRemoteCSSFileToLocal();
+  debugger;
   console.log("--------------");
   processCSS();
-  console.log("--------------");
-  processCSSCrossOrigin();
+  debugger;
   console.log("--------------");
   processImages();
+  debugger;
   console.log("--------------");
-  processCSSImagesDeferred();
+  processCSSImages();
   console.log("--------------");
 }
 
